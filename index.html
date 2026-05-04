@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpoofNet — Liveness Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #ffffff;
+    --surface:      #ffffff;
+    --surface-alt:  #f9f8fc;
+    --border:       #e0d4f0;
+    --border-light: #ede9f6;
+    --text:         #1a1a1a;
+    --text-secondary: #666666;
+    --text-muted:   #999999;
+    --accent:       #5b5fc7;
+    --accent-light: #f3f0ff;
+    --success:      #10b981;
+    --highlight:    #d97706;
+    --shadow-sm:    0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md:    0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg:    0 8px 24px rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* HEADER / NAV */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  nav {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.2rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--text);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .nav-center {
+    display: flex;
+    gap: 2.5rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .nav-link {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+    white-space: nowrap;
+  }
+
+  .nav-link:hover { color: var(--text); }
+
+  .nav-end {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .btn-primary {
+    background: var(--highlight);
+    color: white;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-primary:hover {
+    background: #b85d0a;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* HERO */
+  .hero {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 5rem 2rem;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+  }
+
+  .hero-content h1 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.2rem;
+  }
+
+  .hero-content h1 .accent { color: var(--accent); }
+
+  .hero-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.75;
+    max-width: 48ch;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    padding: 0.6rem 1.4rem;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 450px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .hero-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* FLOATING SECURITY ICON */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  .floating-icon {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, var(--accent-light) 0%, rgba(91,95,199,0.08) 100%);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    animation: float 3s ease-in-out infinite;
+    box-shadow: 0 20px 40px rgba(91,95,199,0.25), 0 0 60px rgba(91,95,199,0.15);
+    z-index: 2;
+  }
+
+  .floating-icon:nth-child(1) {
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 100px;
+    font-size: 3rem;
+    animation-delay: 0s;
+  }
+
+  .floating-icon:nth-child(2) {
+    bottom: 10%;
+    left: -50px;
+    width: 110px;
+    height: 110px;
+    font-size: 3.2rem;
+    animation-delay: 0.5s;
+    background: linear-gradient(135deg, #fef3c7 0%, rgba(217,119,6,0.08) 100%);
+    border-color: #d97706;
+    box-shadow: 0 20px 40px rgba(217,119,6,0.2), 0 0 60px rgba(217,119,6,0.1);
+  }
+
+  .floating-icon:nth-child(3) {
+    bottom: 15%;
+    right: -45px;
+    width: 105px;
+    height: 105px;
+    font-size: 3rem;
+    animation-delay: 1s;
+    background: linear-gradient(135deg, #dbeafe 0%, rgba(59,130,246,0.08) 100%);
+    border-color: #3b82f6;
+    box-shadow: 0 20px 40px rgba(59,130,246,0.2), 0 0 60px rgba(59,130,246,0.1);
+  }
+
+  .device-frame {
+    background: var(--surface);
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 420px;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+  }
+
+  .device-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-alt);
+  }
+
+  .device-brand {
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .device-brand-icon {
+    width: 20px;
+    height: 20px;
+    background: var(--text);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: white;
+    font-weight: 700;
+  }
+
+  .device-indicators {
+    display: flex;
+    gap: 4px;
+  }
+
+  .indicator {
+    width: 3px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  .indicator.active { background: var(--accent); }
+
+  .device-content {
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .device-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .device-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.2rem;
+    line-height: 1.6;
+  }
+
+  .device-face {
+    width: 80px;
+    height: 80px;
+    background: var(--accent-light);
+    border-radius: 40px;
+    margin: 1rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+  }
+
+  .device-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #f0fdf4;
+    color: var(--success);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.6rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+
+  .status-indicator {
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .device-button {
+    width: 100%;
+    padding: 0.65rem;
+    background: var(--text);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .device-button:hover { background: #333; }
+
+  .device-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface-alt);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  /* SECTIONS */
+  section {
+    padding: 5rem 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+    background: var(--bg);
+  }
+
+  .section-header {
+    margin-bottom: 3.5rem;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+
+  .section-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    max-width: 56ch;
+    line-height: 1.75;
+  }
+
+  /* FEATURES GRID */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .feature-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--accent-light);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+
+  .feature-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* STEPS SECTION */
+  .steps-bg { background: var(--surface-alt); }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .step-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .step-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+
+  .step-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+
+  .step-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* USE CASES GRID */
+  .use-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .use-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.8rem;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .use-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .use-icon {
+    font-size: 1.8rem;
+  }
+
+  .use-card h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .use-card p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* CTA SECTION */
+  .cta-section {
+    background: linear-gradient(135deg, var(--accent-light) 0%, rgba(91,95,199,0.05) 100%);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    border: 1px solid rgba(91,95,199,0.2);
+    box-shadow: 0 8px 24px rgba(91,95,199,0.12);
+  }
+
+  .cta-section h2 {
+    color: var(--accent);
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .cta-note {
+    margin-top: 1.2rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2.5rem;
+    text-align: center;
+    background: var(--surface);
+  }
+
+  footer p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+
+  footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  footer a:hover { color: var(--text); }
+
+  /* RESPONSIVE */
+  @media (max-width: 1024px) {
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+
+    .hero-visual { display: none; }
+
+    .nav-center { display: none; }
+
+    nav {
+      padding: 1rem 2rem;
+      gap: 1rem;
+    }
+
+    section { padding: 3.5rem 2rem; }
+
+    .hero { padding: 3.5rem 2rem; }
+  }
+
+  @media (max-width: 640px) {
+    .features-grid,
+    .steps-grid,
+    .use-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .hero-actions a {
+      width: 100%;
+      text-align: center;
+    }
+
+    .nav-end { flex-direction: column; }
+
+    .cta-actions {
+      flex-direction: column;
+    }
+
+    .cta-actions a {
+      width: 100%;
+    }
+
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <nav>
+    <a class="logo" href="#">
+      <div class="logo-icon">S</div>
+      SpoofNet
+    </a>
+    <div class="nav-center">
+      <a class="nav-link" href="#features">Features</a>
+      <a class="nav-link" href="#how">How it works</a>
+      <a class="nav-link" href="#usecases">Use cases</a>
+    </div>
+    <div class="nav-end">
+      <a href="https://spoofnetorg.github.io/SN.github.io/" target="_blank" class="btn-primary">Try it now</a>
+    </div>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <h1>Verify real humans,<br><span class="accent">block spoofs.</span></h1>
+    <p class="hero-subtitle">SpoofNet uses on-device liveness detection to confirm you're a real person, not a photo, video, or mask. Instant. Private. Tiny.</p>
+    
+    <div class="hero-actions">
+      <a href="https://spoofnetorg.github.io/SN.github.io/" target="_blank" class="btn-primary">Try it yourself</a>
+      <a href="#how" class="btn-secondary">Learn more</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-value">&lt;20ms</div>
+        <div class="stat-label">Verify time</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">&lt;5 MB</div>
+        <div class="stat-label">Model size</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">100%</div>
+        <div class="stat-label">On-device</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="floating-icon">🔐</div>
+    <div class="floating-icon">🔍</div>
+    <div class="floating-icon">👤</div>
+    <div class="device-frame">
+      <div class="device-header">
+        <div class="device-brand">
+          <div class="device-brand-icon">S</div>
+          SpoofNet
+        </div>
+        <div class="device-indicators">
+          <div class="indicator active"></div>
+          <div class="indicator"></div>
+          <div class="indicator"></div>
+        </div>
+      </div>
+      <div class="device-content">
+        <div class="device-title">Verify identity</div>
+        <div class="device-desc">Confirm you're a real person in under 20ms</div>
+        <div class="device-face">👤</div>
+        <div class="device-status">
+          <div class="status-indicator"></div>
+          Ready
+        </div>
+        <button class="device-button">Verify now</button>
+      </div>
+      <div class="device-footer">
+        <span>en-US</span>
+        <strong>SECURED</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-header">
+    <div class="section-label">Features</div>
+    <h2>Real-person verification<br>without trade-offs.</h2>
+    <p class="section-description">SpoofNet detects whether a face on camera belongs to a live human. Entirely in the browser, no data leaving the device.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">👁</div>
+      <h3>Liveness detection</h3>
+      <p>Distinguishes a live face from a printed photo, replay video, or 3D mask in real time.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Under 20ms</h3>
+      <p>On-device inference delivers a verdict before the user notices any delay. Feels instant.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h3>Zero data sent</h3>
+      <p>The model runs locally in the browser. No biometric data is ever transmitted to a server.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <h3>Under 5 MB</h3>
+      <p>Loads fast on any connection. Fits any web stack without restructuring your app.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="steps-bg">
+  <div class="section-header">
+    <div class="section-label">How it works</div>
+    <h2>Six steps from<br>camera to verdict.</h2>
+    <p class="section-description">The entire pipeline runs client-side. From browser permission request to final liveness decision, with no round trips to a server.</p>
+  </div>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-number">01</div>
+      <h3>Camera permission</h3>
+      <p>The browser's native permission dialog requests camera access. SpoofNet asks only for what it needs.</p>
+      <span class="step-tag">Browser API</span>
+    </div>
+    <div class="step-card">
+      <div class="step-number">02</div>
+      <h3>Live feed capture</h3>
+      <p>A short sequence of frames is captured from the webcam stream. Frames are processed in memory only.</p>
+      <span class="step-tag">MediaStream</span>
+    </div>
+    <div class="step-card">
+      <div class="step-number">03</div>
+      <h3>Face detection</h3>
+      <p>A lightweight pass detects and crops the face region, normalizing it to a fixed input size.</p>
+      <span class="step-tag">On-device</span>
+    </div>
+    <div class="step-card">
+      <div class="step-number">04</div>
+      <h3>Liveness inference</h3>
+      <p>The model runs entirely in-browser via WebAssembly. Analyzes depth, texture, and micro-motion signals.</p>
+      <span class="step-tag">WASM / WebGL</span>
+    </div>
+    <div class="step-card">
+      <div class="step-number">05</div>
+      <h3>Confidence scoring</h3>
+      <p>The model outputs a liveness confidence score. Your integration sets the threshold for verification.</p>
+      <span class="step-tag">Configurable</span>
+    </div>
+    <div class="step-card">
+      <div class="step-number">06</div>
+      <h3>Verdict in &lt;20ms</h3>
+      <p>A real/spoof verdict is returned to your application. Your app decides what happens next.</p>
+      <span class="step-tag">Instant</span>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section id="usecases">
+  <div class="section-header">
+    <div class="section-label">Use cases</div>
+    <h2>Anywhere you need<br>a real human.</h2>
+    <p class="section-description">SpoofNet fits into any product that needs to confirm a live person is present.</p>
+  </div>
+
+  <div class="use-grid">
+    <div class="use-card">
+      <div class="use-icon">🏦</div>
+      <h3>KYC & Onboarding</h3>
+      <p>Add liveness verification to identity checks without server dependencies.</p>
+    </div>
+    <div class="use-card">
+      <div class="use-icon">🗳</div>
+      <h3>Online voting</h3>
+      <p>Prevent duplicate or bot-driven submissions in digital polls.</p>
+    </div>
+    <div class="use-card">
+      <div class="use-icon">🎓</div>
+      <h3>EdTech proctoring</h3>
+      <p>Confirm the right student is present during assessments.</p>
+    </div>
+    <div class="use-card">
+      <div class="use-icon">🚪</div>
+      <h3>Access control</h3>
+      <p>Gate features or content behind a confirmed real-person check.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section>
+  <div class="cta-section">
+    <div class="section-label" style="text-align: center;">Try it now</div>
+    <h2 style="text-align: center;">See it live in your browser.</h2>
+    <p class="section-description" style="margin: 0.8rem auto 0; text-align: center;">Open the demo and let SpoofNet verify you in under 20ms — entirely on your device. No data sent anywhere.</p>
+    
+    <div class="cta-actions">
+      <a href="https://spoofnetorg.github.io/SN.github.io/" target="_blank" class="btn-primary" style="font-size: 1rem; padding: 0.75rem 2rem;">Open demo</a>
+    </div>
+    <p class="cta-note">Camera access required · No data leaves your device · Any modern browser</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a class="logo" href="#" style="justify-content: center;">
+    <div class="logo-icon" style="width: 28px; height: 28px; font-size: 0.8rem;">S</div>
+    SpoofNet
+  </a>
+  <p>© 2025 SpoofNet. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
